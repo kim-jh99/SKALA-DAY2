@@ -86,8 +86,9 @@ def get_top10_by_industry(df):
             .head(10)
         )
         logger.info("업종별 매출 상위 10개 추출 완료")
+        top10_만원 = (top10 // 10000).apply(lambda x: f"{x:,}만원")
         print("\n[업종별 당월 매출 합계 TOP 10]")
-        print(top10.to_string())
+        print(top10_만원.to_string())
         return top10
     except Exception as e:
         logger.error("그룹/정렬 처리 중 오류 발생: %s", e)
@@ -101,13 +102,24 @@ def save_age_group_barchart(df, file_name="age_group_sales.png"):
     """연령대 10/20/30 매출 컬럼별 합계를 bar 그래프로 그려 파일로 저장합니다."""
     try:
         age_columns = ["연령대_10_매출_금액", "연령대_20_매출_금액", "연령대_30_매출_금액"]
-        age_sums = df[age_columns].sum()
+        # 만원 단위로 환산 (원 단위 그대로면 축 숫자가 너무 커서 지수 표기됨)
+        age_sums = df[age_columns].sum() / 10000
 
         plt.figure(figsize=(8, 6))
-        age_sums.plot(kind="bar", color=["#4C72B0", "#55A868", "#C44E52"])
+        ax = age_sums.plot(kind="bar", color=["#4C72B0", "#55A868", "#C44E52"])
         plt.title("연령대별 매출 합계 (10대 / 20대 / 30대)")
-        plt.ylabel("매출 금액 합계")
+        plt.ylabel("매출 금액 합계 (만원)")
         plt.xticks(rotation=0)
+
+        # y축 눈금을 천단위 콤마로 표시 (지수 표기 제거)
+        ax.get_yaxis().set_major_formatter(
+            plt.matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x):,}")
+        )
+
+        # 각 막대 위에 값 표시 (만원, 콤마)
+        for i, v in enumerate(age_sums):
+            ax.text(i, v, f"{int(v):,}", ha="center", va="bottom")
+
         plt.tight_layout()
         plt.savefig(file_name, dpi=100, bbox_inches="tight")
         plt.close()
